@@ -29,6 +29,10 @@ void Bu04Console::update(Bu04Uart& device) {
       input_ = "";
     }
   }
+
+  if (mirrorMode_) {
+    device.drainTo(usb_);
+  }
 }
 
 void Bu04Console::printHelp() {
@@ -36,6 +40,8 @@ void Bu04Console::printHelp() {
   usb_.println("  help           - show this help");
   usb_.println("  pass on        - forward every line to BU04");
   usb_.println("  pass off       - enable local command parsing");
+  usb_.println("  mirror on      - mirror BU04 Serial1 replies to USB");
+  usb_.println("  mirror off     - stop mirroring BU04 Serial1 replies");
   usb_.println("  mode           - show current mode");
   usb_.println("  ping           - send AT and read one line");
   usb_.println("  at <cmd>       - send raw AT command");
@@ -55,6 +61,12 @@ void Bu04Console::printHelp() {
 void Bu04Console::setPassthrough(bool enabled) {
   passthroughMode_ = enabled;
   usb_.print("Passthrough mode: ");
+  usb_.println(enabled ? "ON" : "OFF");
+}
+
+void Bu04Console::setMirror(bool enabled) {
+  mirrorMode_ = enabled;
+  usb_.print("Mirror BU04 Serial1 to USB: ");
   usb_.println(enabled ? "ON" : "OFF");
 }
 
@@ -120,6 +132,16 @@ void Bu04Console::handleLine(Bu04Uart& device, const String& line) {
 
   if (line == "pass off") {
     setPassthrough(false);
+    return;
+  }
+
+  if (line == "mirror on") {
+    setMirror(true);
+    return;
+  }
+
+  if (line == "mirror off") {
+    setMirror(false);
     return;
   }
 

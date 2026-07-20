@@ -395,12 +395,32 @@ void Bu04PdoaBridge::sendJsonToServer(const Bu04PdoaSample& sample) {
 
 void Bu04PdoaBridge::logStatusIfDue() {
   const unsigned long now = millis();
-  if (now - lastStatusLogMs_ < 5000UL) {
+  if (now - lastStatusLogMs_ < net_demo::kStatusLogMs) {
     return;
   }
   lastStatusLogMs_ = now;
 
-  // Keep quiet unless you want to re-enable diagnostics here later.
+  debug_.print("[TCP] bytes=");
+  debug_.print(totalBytes_);
+  debug_.print(" frames=");
+  debug_.print(totalFrames_);
+  debug_.print(" groups=");
+  debug_.print(totalGroups_);
+  debug_.print(" sent=");
+  debug_.print(totalSent_);
+  debug_.print(" queue=");
+  debug_.print(queueCount_);
+  debug_.print(" parse_fail=");
+  debug_.print(parseFails_);
+
+  if (lastByteMs_ == 0) {
+    debug_.println(" data=waiting");
+    return;
+  }
+
+  const unsigned long idleMs = now - lastByteMs_;
+  debug_.print(" data_idle_ms=");
+  debug_.println(idleMs);
 }
 
 void Bu04PdoaBridge::resetFrame() {

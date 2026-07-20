@@ -15,7 +15,8 @@ inline IPAddress serverIp() {
 constexpr uint16_t kServerPort = 5000;
 
 // Reconnect behavior.
-constexpr uint32_t kWifiReconnectMs = 5000;
-constexpr uint32_t kServerReconnectMs = 3000;
+constexpr uint32_t kWifiReconnectMs = 15000;
+constexpr uint32_t kServerReconnectMs = 8000;
+constexpr uint32_t kStatusLogMs = 15000;
 
 }  // namespace net_demo

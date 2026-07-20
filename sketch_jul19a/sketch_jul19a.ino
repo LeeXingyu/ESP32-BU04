@@ -3,14 +3,22 @@
 #include "src/bu04/Bu04Config.h"
 #include "src/bu04/Bu04Console.h"
 #include "src/bu04/Bu04Uart.h"
+#include "src/AppMode.h"
+
+#if BU04_APP_USE_FOLLOW
+#include "src/follow/UwbFollowRest.h"
+using AppController = follow_demo::UwbFollowRest;
+#else
 #include "src/net/Bu04PdoaBridge.h"
+using AppController = Bu04PdoaBridge;
+#endif
 
 HardwareSerial Bu04CmdSerial(1);
 HardwareSerial Bu04DataSerial(2);
 Bu04Uart bu04Cmd(Bu04CmdSerial);
 Bu04Uart bu04Data(Bu04DataSerial);
+AppController appController(Serial);
 Bu04Console console(Serial);
-Bu04PdoaBridge pdoaBridge(Serial);
 
 void setup() {
   Serial.begin(bu04_demo::kUsbBaud);
@@ -21,7 +29,7 @@ void setup() {
   Bu04CmdSerial.begin(bu04_demo::kCmdBaud, SERIAL_8N1, bu04_demo::kCmdRxPin, bu04_demo::kCmdTxPin);
   Bu04DataSerial.begin(bu04_demo::kDataBaud, SERIAL_8N1, bu04_demo::kDataRxPin, bu04_demo::kDataTxPin);
   console.begin();
-  pdoaBridge.begin();
+  appController.begin();
 
   Serial.println();
   Serial.println("ESP32 + BU04-Kit demo ready");
@@ -38,11 +46,17 @@ void setup() {
   Serial.println("  Power        -> 3.3V or 5V per module label");
   Serial.println("USB console defaults to passthrough mode.");
   Serial.println("Type 'pass off' to use local helper commands.");
+  Serial.print("App mode = ");
+#if BU04_APP_USE_FOLLOW
+  Serial.println("FOLLOW");
+#else
+  Serial.println("TCP");
+#endif
 
   bu04Cmd.sendCommand("AT");
 }
 
 void loop() {
   console.update(bu04Cmd);
-  pdoaBridge.update(bu04Data);
+  appController.update(bu04Data);
 }

@@ -21,9 +21,11 @@ class Bu04Console {
   void restoreConfig(Bu04Uart& device);
   void addTag(Bu04Uart& device, const String& tagId);
   void setPassthrough(bool enabled);
+  void setMirror(bool enabled);
   void printMode() const;
 
   Stream& usb_;
   String input_;
   bool passthroughMode_ = true;
+  bool mirrorMode_ = true;
 };
