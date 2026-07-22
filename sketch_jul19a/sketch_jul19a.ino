@@ -5,9 +5,12 @@
 #include "src/bu04/Bu04Uart.h"
 #include "src/AppMode.h"
 
-#if BU04_APP_USE_FOLLOW
+#if BU04_APP_MODE == BU04_APP_MODE_FOLLOW
 #include "src/follow/UwbFollowRest.h"
 using AppController = follow_demo::UwbFollowRest;
+#elif BU04_APP_MODE == BU04_APP_MODE_TEST_CHAIN
+#include "src/test_chain/Bu04TestChain.h"
+using AppController = test_chain::Bu04TestChain;
 #else
 #include "src/net/Bu04PdoaBridge.h"
 using AppController = Bu04PdoaBridge;
@@ -47,8 +50,10 @@ void setup() {
   Serial.println("USB console defaults to passthrough mode.");
   Serial.println("Type 'pass off' to use local helper commands.");
   Serial.print("App mode = ");
-#if BU04_APP_USE_FOLLOW
+#if BU04_APP_MODE == BU04_APP_MODE_FOLLOW
   Serial.println("FOLLOW");
+#elif BU04_APP_MODE == BU04_APP_MODE_TEST_CHAIN
+  Serial.println("TEST_CHAIN");
 #else
   Serial.println("TCP");
 #endif

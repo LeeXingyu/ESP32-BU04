@@ -1,26 +1,24 @@
-#include "SlamtecRestClient.h"
+#include "TestMotionClient.h"
 
 #include <HTTPClient.h>
 
-#include "FollowConfig.h"
+namespace test_chain {
 
-namespace follow_demo {
+TestMotionClient::TestMotionClient(Stream& debug) : debug_(debug) {}
 
-SlamtecRestClient::SlamtecRestClient(Stream& debug) : debug_(debug) {}
-
-String SlamtecRestClient::baseUrl() const {
+String TestMotionClient::baseUrl() const {
   String url = "http://";
-  url += follow_demo::robotIp().toString();
+  url += test_chain::robotIp().toString();
   url += ":";
-  url += String(follow_demo::kRobotPort);
+  url += String(test_chain::kRobotPort);
   return url;
 }
 
-static float degToRad(float value) {
+float TestMotionClient::degToRad(float value) {
   return value * PI / 180.0f;
 }
 
-bool SlamtecRestClient::extractNumberField(const String& text, const char* key, float& value) {
+bool TestMotionClient::extractNumberField(const String& text, const char* key, float& value) {
   const String needle = String("\"") + key + "\"";
   const int start = text.indexOf(needle);
   if (start < 0) {
@@ -54,7 +52,7 @@ bool SlamtecRestClient::extractNumberField(const String& text, const char* key, 
   return true;
 }
 
-bool SlamtecRestClient::extractStringField(const String& text, const char* key, String& value) {
+bool TestMotionClient::extractStringField(const String& text, const char* key, String& value) {
   const String needle = String("\"") + key + "\"";
   const int start = text.indexOf(needle);
   if (start < 0) {
@@ -84,11 +82,11 @@ bool SlamtecRestClient::extractStringField(const String& text, const char* key, 
   return true;
 }
 
-bool SlamtecRestClient::requestJson(const String& method,
-                                    const String& url,
-                                    const String& body,
-                                    int& httpCode,
-                                    String& response) {
+bool TestMotionClient::requestJson(const String& method,
+                                   const String& url,
+                                   const String& body,
+                                   int& httpCode,
+                                   String& response) {
   HTTPClient http;
   if (!http.begin(url)) {
     return false;
@@ -114,7 +112,7 @@ bool SlamtecRestClient::requestJson(const String& method,
   return true;
 }
 
-bool SlamtecRestClient::getPose(RobotPose& pose) {
+bool TestMotionClient::getPose(RobotPose& pose) {
   int httpCode = 0;
   String body;
   if (!requestJson("GET", baseUrl() + "/api/core/slam/v1/localization/pose", "", httpCode, body)) {
@@ -129,11 +127,10 @@ bool SlamtecRestClient::getPose(RobotPose& pose) {
          extractNumberField(body, "yaw", pose.yaw);
 }
 
-bool SlamtecRestClient::startMoveTo(float x, float y, String& actionId) {
+bool TestMotionClient::startMoveTo(float x, float y, String& actionId) {
   String body;
   body.reserve(256);
   body += "{\"action_name\":\"slamtec.agent.actions.MoveToAction\",";
-  //body += "{\"action_name\":\"slamtec.agent.actions.SeriesMoveToAction\",";
   body += "\"options\":{\"target\":{\"x\":";
   body += String(x, 3);
   body += ",\"y\":";
@@ -152,12 +149,13 @@ bool SlamtecRestClient::startMoveTo(float x, float y, String& actionId) {
   return extractStringField(response, "action_id", actionId);
 }
 
-bool SlamtecRestClient::startRotateTo(float angleDeg, String& actionId) {
+bool TestMotionClient::startRotateTo(float angleDeg, String& actionId) {
   String body;
   body.reserve(192);
-  body += "{\"action_name\":\"slamtec.agent.actions.RotateToAction\",";
+  const float angleRad = degToRad(angleDeg);
+  body += "{\"action_name\":\"slamtec.agent.actions.RotateAction\",";
   body += "\"options\":{\"angle\":";
-  body += String(degToRad(angleDeg), 6);
+  body += String(angleRad, 6);
   body += "}}";
 
   int httpCode = 0;
@@ -172,7 +170,7 @@ bool SlamtecRestClient::startRotateTo(float angleDeg, String& actionId) {
   return extractStringField(response, "action_id", actionId);
 }
 
-bool SlamtecRestClient::getActionRunning(const String& actionId, bool& running) {
+bool TestMotionClient::getActionRunning(const String& actionId, bool& running) {
   int httpCode = 0;
   String response;
   if (!requestJson("GET", baseUrl() + "/api/core/motion/v1/actions/" + actionId, "", httpCode, response)) {
@@ -200,7 +198,7 @@ bool SlamtecRestClient::getActionRunning(const String& actionId, bool& running) 
   return true;
 }
 
-bool SlamtecRestClient::cancelCurrentAction() {
+bool TestMotionClient::cancelCurrentAction() {
   int httpCode = 0;
   String response;
   if (!requestJson("DELETE", baseUrl() + "/api/core/motion/v1/actions/:current", "", httpCode, response)) {
@@ -209,4 +207,4 @@ bool SlamtecRestClient::cancelCurrentAction() {
   return httpCode >= 200 && httpCode < 300;
 }
 
-}  // namespace follow_demo
+}  // namespace test_chain

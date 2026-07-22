@@ -3,8 +3,18 @@ AT+SETUWBMODE=1
 AT+SAVE
 
 AT+ADDTAG=0512015760A87D8B,8834,1,64,0
+增加标签到[配对列表]（注：仅适用基站）
+x1:标签长地址64bit
+x2:标签短地址
+x3:标签最快刷新速率
+x4:标签最慢刷新速率
+x5:标签模式
 AT+SAVE
 
 AT+RESTORE
 
 JS001D{"NewTag":"0512015760A87D8B"}
+
+AT+PDOAOFF=1
+AT+RNGOFF=1
+AT+FILTER=1

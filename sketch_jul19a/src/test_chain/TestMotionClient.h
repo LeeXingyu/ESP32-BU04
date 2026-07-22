@@ -3,7 +3,9 @@
 #include <Arduino.h>
 #include <WiFi.h>
 
-namespace follow_demo {
+#include "TestChainConfig.h"
+
+namespace test_chain {
 
 struct RobotPose {
   float x = 0.0f;
@@ -11,9 +13,9 @@ struct RobotPose {
   float yaw = 0.0f;
 };
 
-class SlamtecRestClient {
+class TestMotionClient {
  public:
-  explicit SlamtecRestClient(Stream& debug);
+  explicit TestMotionClient(Stream& debug);
 
   bool getPose(RobotPose& pose);
   bool startMoveTo(float x, float y, String& actionId);
@@ -23,6 +25,7 @@ class SlamtecRestClient {
 
  private:
   String baseUrl() const;
+  static float degToRad(float value);
   static bool extractNumberField(const String& text, const char* key, float& value);
   static bool extractStringField(const String& text, const char* key, String& value);
   bool requestJson(const String& method,
@@ -34,4 +37,4 @@ class SlamtecRestClient {
   Stream& debug_;
 };
 
-}  // namespace follow_demo
+}  // namespace test_chain

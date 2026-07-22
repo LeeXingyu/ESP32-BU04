@@ -4,6 +4,36 @@
 
 #include "NetConfig.h"
 
+void Bu04PdoaBridge::sortLongs(long* values, uint8_t count) {
+  for (uint8_t i = 1; i < count; ++i) {
+    const long key = values[i];
+    int8_t j = static_cast<int8_t>(i) - 1;
+    while (j >= 0 && values[j] > key) {
+      values[j + 1] = values[j];
+      --j;
+    }
+    values[j + 1] = key;
+  }
+}
+
+long Bu04PdoaBridge::medianLong(const long* values, uint8_t count) {
+  if (count == 0) {
+    return 0;
+  }
+
+  long temp[16];
+  for (uint8_t i = 0; i < count; ++i) {
+    temp[i] = values[i];
+  }
+
+  sortLongs(temp, count);
+  const uint8_t mid = static_cast<uint8_t>(count / 2U);
+  if ((count & 1U) != 0U) {
+    return temp[mid];
+  }
+  return (temp[mid - 1U] + temp[mid]) / 2L;
+}
+
 Bu04PdoaBridge::Bu04PdoaBridge(Stream& debug)
     : debug_(debug),
       expectedLength_(0),
@@ -11,6 +41,7 @@ Bu04PdoaBridge::Bu04PdoaBridge(Stream& debug)
       lastWifiAttempt_(0),
       lastServerAttempt_(0),
       lastStatusLogMs_(0),
+      lastThroughputLogMs_(0),
       lastByteMs_(0),
       lastFrameMs_(0),
       lastWifiState_(false),
@@ -19,7 +50,10 @@ Bu04PdoaBridge::Bu04PdoaBridge(Stream& debug)
       totalFrames_(0),
       totalGroups_(0),
       totalSent_(0),
-      parseFails_(0) {
+      parseFails_(0),
+      windowBytes_(0),
+      windowFrames_(0),
+      windowGroups_(0) {
   lenBuffer_.reserve(8);
   payloadBuffer_.reserve(256);
   sampleCount_ = 0;
@@ -43,12 +77,14 @@ void Bu04PdoaBridge::update(Bu04Uart& dataUart) {
   char c;
   while (dataUart.readByte(c)) {
     ++totalBytes_;
+    ++windowBytes_;
     lastByteMs_ = millis();
     handleIncomingByte(c);
   }
 
   sendQueuedIfDue();
   logStatusIfDue();
+  logThroughputIfDue();
 }
 
 void Bu04PdoaBridge::ensureWifi() {
@@ -257,6 +293,7 @@ bool Bu04PdoaBridge::parseFrame(const String& frame) {
 
   if (ok) {
     ++totalFrames_;
+    ++windowFrames_;
     lastFrameMs_ = millis();
     appendSample(data);
   } else {
@@ -298,16 +335,46 @@ void Bu04PdoaBridge::flushAveragedGroup() {
     return;
   }
 
-  // Middle 10 frames are averaged. The last frame keeps T and non-averaged fields.
-  long sumXcm = 0;
-  long sumYcm = 0;
+  // Jump rejection happens here, after the full group has been collected.
+  // We use the group median as a stable reference and then average the
+  // remaining points.
+  long xcmWindow[16];
+  long ycmWindow[16];
+  for (uint8_t i = 0; i < sampleCount_; ++i) {
+    xcmWindow[i] = samples_[i].xcm;
+    ycmWindow[i] = samples_[i].ycm;
+  }
+
+  const long refXcm = medianLong(xcmWindow, sampleCount_);
+  const long refYcm = medianLong(ycmWindow, sampleCount_);
+
   long sumD = 0;
   long sumP = 0;
+  long sumXcm = 0;
+  long sumYcm = 0;
   long sumX = 0;
   long sumY = 0;
   long sumZ = 0;
+  uint8_t keptCount = 0;
+  Bu04PdoaData lastKept = samples_[sampleCount_ - 1U];
 
-  for (uint8_t i = 3; i < 13; ++i) {
+  for (uint8_t i = 0; i < sampleCount_; ++i) {
+    const long dx = samples_[i].xcm - refXcm;
+    const long dy = samples_[i].ycm - refYcm;
+    const float jumpCm = sqrtf(static_cast<float>(dx * dx + dy * dy));
+
+    const bool keepSample =
+#if BU04_TCP_ENABLE_OUTLIER_GUARD
+        (jumpCm <= BU04_TCP_OUTLIER_DISTANCE_CM) || (keptCount < BU04_TCP_OUTLIER_MIN_KEEP);
+#else
+        true;
+#endif
+
+    if (!keepSample) {
+      continue;
+    }
+
+    lastKept = samples_[i];
     sumD += samples_[i].d;
     sumP += samples_[i].p;
     sumXcm += samples_[i].xcm;
@@ -315,18 +382,32 @@ void Bu04PdoaBridge::flushAveragedGroup() {
     sumX += samples_[i].x;
     sumY += samples_[i].y;
     sumZ += samples_[i].z;
+    ++keptCount;
   }
 
-  Bu04PdoaData avg = samples_[15];
-  avg.d = sumD / 10;
-  avg.p = sumP / 10;
-  avg.xcm = sumXcm / 10;
-  avg.ycm = sumYcm / 10;
-  avg.x = sumX / 10;
-  avg.y = sumY / 10;
-  avg.z = sumZ / 10;
+  if (keptCount == 0) {
+    lastKept = samples_[sampleCount_ - 1U];
+    sumD = lastKept.d;
+    sumP = lastKept.p;
+    sumXcm = lastKept.xcm;
+    sumYcm = lastKept.ycm;
+    sumX = lastKept.x;
+    sumY = lastKept.y;
+    sumZ = lastKept.z;
+    keptCount = 1;
+  }
+
+  Bu04PdoaData avg = lastKept;
+  avg.d = sumD / keptCount;
+  avg.p = sumP / keptCount;
+  avg.xcm = sumXcm / keptCount;
+  avg.ycm = sumYcm / keptCount;
+  avg.x = sumX / keptCount;
+  avg.y = sumY / keptCount;
+  avg.z = sumZ / keptCount;
 
   ++totalGroups_;
+  ++windowGroups_;
   enqueueAveragedGroup(avg);
 }
 
@@ -421,6 +502,43 @@ void Bu04PdoaBridge::logStatusIfDue() {
   const unsigned long idleMs = now - lastByteMs_;
   debug_.print(" data_idle_ms=");
   debug_.println(idleMs);
+}
+
+void Bu04PdoaBridge::logThroughputIfDue() {
+  const unsigned long now = millis();
+  if (lastThroughputLogMs_ == 0) {
+    lastThroughputLogMs_ = now;
+    return;
+  }
+
+  if (now - lastThroughputLogMs_ < 1000UL) {
+    return;
+  }
+
+  const unsigned long elapsedMs = now - lastThroughputLogMs_;
+  lastThroughputLogMs_ = now;
+
+  const float seconds = static_cast<float>(elapsedMs) / 1000.0f;
+  const float bytesPerSec = static_cast<float>(windowBytes_) / seconds;
+  const float framesPerSec = static_cast<float>(windowFrames_) / seconds;
+  const float groupsPerSec = static_cast<float>(windowGroups_) / seconds;
+
+  debug_.print("[TCP THROUGHPUT] bytes_1s=");
+  debug_.print(windowBytes_);
+  debug_.print(" frames_1s=");
+  debug_.print(windowFrames_);
+  debug_.print(" groups_1s=");
+  debug_.print(windowGroups_);
+  debug_.print(" bytes_per_s=");
+  debug_.print(bytesPerSec, 1);
+  debug_.print(" frames_per_s=");
+  debug_.print(framesPerSec, 1);
+  debug_.print(" groups_per_s=");
+  debug_.println(groupsPerSec, 1);
+
+  windowBytes_ = 0;
+  windowFrames_ = 0;
+  windowGroups_ = 0;
 }
 
 void Bu04PdoaBridge::resetFrame() {

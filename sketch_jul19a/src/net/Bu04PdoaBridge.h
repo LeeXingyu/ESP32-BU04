@@ -50,12 +50,15 @@ class Bu04PdoaBridge {
   static bool parseStringField(const String& text, const char* key, String& value);
   static bool parseLongField(const String& text, const char* key, long& value);
   bool parseFrame(const String& frame);
+  static void sortLongs(long* values, uint8_t count);
+  static long medianLong(const long* values, uint8_t count);
   void appendSample(const Bu04PdoaData& data);
   void flushAveragedGroup();
   void enqueueAveragedGroup(const Bu04PdoaData& data);
   void sendQueuedIfDue();
   void sendJsonToServer(const Bu04PdoaSample& sample);
   void logStatusIfDue();
+  void logThroughputIfDue();
 
   Stream& debug_;
   WiFiClient client_;
@@ -66,6 +69,7 @@ class Bu04PdoaBridge {
   unsigned long lastWifiAttempt_;
   unsigned long lastServerAttempt_;
   unsigned long lastStatusLogMs_;
+  unsigned long lastThroughputLogMs_;
   unsigned long lastByteMs_;
   unsigned long lastFrameMs_;
   bool lastWifiState_;
@@ -75,6 +79,9 @@ class Bu04PdoaBridge {
   uint32_t totalGroups_;
   uint32_t totalSent_;
   uint32_t parseFails_;
+  uint32_t windowBytes_;
+  uint32_t windowFrames_;
+  uint32_t windowGroups_;
   Bu04PdoaData samples_[16];
   uint8_t sampleCount_;
   Bu04PdoaSample queue_[3];
