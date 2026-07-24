@@ -175,9 +175,10 @@ The follow path is implemented in:
 - estimate velocity
 - compute a follow target point
 - query Slamtec pose with REST
-- send `MoveToAction` requests to the robot
+- sample coordinates at 1 Hz and send single-point `FollowPathPointsAction` requests
+- lower follow speed ratio to reduce braking jerk
 - monitor action status
-- replan when the target changes enough
+- wait for the current follow-path action to finish before dispatching the next point
 
 ### 7.2 Current Follow Filtering
 
@@ -263,4 +264,3 @@ Think of the project as three layers:
 - [`src/follow/UwbFollowRest.cpp`](../src/follow/UwbFollowRest.cpp)
 - [`src/follow/SlamtecRestClient.h`](../src/follow/SlamtecRestClient.h)
 - [`src/follow/SlamtecRestClient.cpp`](../src/follow/SlamtecRestClient.cpp)
-

@@ -17,13 +17,16 @@ Bu04TestChain::Bu04TestChain(Stream& debug)
       lastRotateSendMs_(0),
       lastActionCheckMs_(0),
       lastStatusLogMs_(0),
+      lastRxRateLogMs_(0),
       lastFrameSeenMs_(0),
       lastRestAttemptMs_(0),
+      lastLegFetchMs_(0),
       wifiReady_(false),
       hasPose_(false),
       actionActive_(false),
       hasCurrentTarget_(false),
       totalFrames_(0),
+      rxFramesSinceLog_(0),
       totalSends_(0),
       parseFails_(0),
       rejectedFrames_(0),
@@ -39,9 +42,23 @@ void Bu04TestChain::begin() {
   WiFi.setSleep(false);
   WiFi.begin(test_chain::kWifiSsid, test_chain::kWifiPassword);
   debug_.println("Test chain controller starting...");
+#if BU04_TEST_CHAIN_MODE == BU04_TEST_CHAIN_MODE_LEG_ONLY
+  debug_.println("Test chain leg-only mode active");
+#endif
 }
 
 void Bu04TestChain::update(Bu04Uart& dataUart) {
+#if BU04_TEST_CHAIN_MODE == BU04_TEST_CHAIN_MODE_LEG_ONLY
+  (void)dataUart;
+  runLegOnlyTest();
+#else
+#ifdef BU04_TEST_CHAIN_ENABLE_BU04_RX_RATE_LOG
+  char c;
+  while (dataUart.readByte(c)) {
+    handleIncomingByte(c);
+  }
+  logRxRateIfDue();
+#else
   ensureWifi();
 
   char c;
@@ -52,11 +69,34 @@ void Bu04TestChain::update(Bu04Uart& dataUart) {
   tickPeriodicMove();
   checkCurrentAction();
   logStatusIfDue();
+  logRxRateIfDue();
 
   if (lastFrameSeenMs_ != 0U && millis() - lastFrameSeenMs_ > BU04_TEST_CHAIN_FRAME_IDLE_LOG_MS) {
     debug_.println("[TEST] frame idle");
     lastFrameSeenMs_ = millis();
   }
+#endif
+#endif
+}
+
+void Bu04TestChain::runLegOnlyTest() {
+  ensureWifi();
+
+  const unsigned long now = millis();
+  if (now - lastLegFetchMs_ < BU04_TEST_CHAIN_LEG_FETCH_MS) {
+    return;
+  }
+  lastLegFetchMs_ = now;
+
+  const String ip = test_chain::robotIp().toString();
+  debug_.print("[TEST] leg fetch start ms=");
+  debug_.println(now);
+  const bool ok = leg_follow::p15FetchAndPrintTimed(ip,
+                                                    leg_follow::P15OutputFormat::kText,
+                                                    debug_,
+                                                    test_chain::kRobotPort);
+  debug_.print("[TEST] leg fetch end ok=");
+  debug_.println(ok ? 1 : 0);
 }
 
 void Bu04TestChain::ensureWifi() {
@@ -141,13 +181,18 @@ void Bu04TestChain::handleIncomingByte(char c) {
         UwbFrame frame;
         if (parseFrame(payloadBuffer_, frame)) {
           ++totalFrames_;
+          ++rxFramesSinceLog_;
           lastFrameSeenMs_ = millis();
+#ifdef BU04_TEST_CHAIN_ENABLE_BU04_RX_RATE_LOG
+          (void)frame;
+#else
 #if BU04_TEST_CHAIN_MODE == BU04_TEST_CHAIN_MODE_STRAIGHT_ONLY
           handleStraightFrame(frame);
 #elif BU04_TEST_CHAIN_MODE == BU04_TEST_CHAIN_MODE_ROTATE_ONLY
           handleRotateFrame(frame);
 #else
           (void)frame;
+#endif
 #endif
         } else {
           ++parseFails_;
@@ -424,6 +469,21 @@ void Bu04TestChain::logStatusIfDue() {
   debug_.print(straightAccepted_);
   debug_.print(" rotate=");
   debug_.println(rotateAccepted_);
+}
+
+void Bu04TestChain::logRxRateIfDue() {
+#ifdef BU04_TEST_CHAIN_ENABLE_BU04_RX_RATE_LOG
+  const unsigned long now = millis();
+  if (now - lastRxRateLogMs_ < BU04_TEST_CHAIN_RX_RATE_LOG_MS) {
+    return;
+  }
+  lastRxRateLogMs_ = now;
+  debug_.print("[TEST] bu04_rx_frames_1s=");
+  debug_.println(rxFramesSinceLog_);
+  rxFramesSinceLog_ = 0U;
+#else
+  (void)rxFramesSinceLog_;
+#endif
 }
 
 }  // namespace test_chain

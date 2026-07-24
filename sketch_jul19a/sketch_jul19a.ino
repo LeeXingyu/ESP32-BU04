@@ -8,6 +8,15 @@
 #if BU04_APP_MODE == BU04_APP_MODE_FOLLOW
 #include "src/follow/UwbFollowRest.h"
 using AppController = follow_demo::UwbFollowRest;
+#elif BU04_APP_MODE == BU04_APP_MODE_FOLLOW_V2_1HZ || BU04_APP_MODE == BU04_APP_MODE_FOLLOW_V2_WINDOW
+#include "src/follow_v2/UwbFollowRestV2.h"
+using AppController = follow_v2::UwbFollowRestV2;
+#elif BU04_APP_MODE == BU04_APP_MODE_FOLLOW_V3
+#include "src/follow_v3/UwbFollowRestV3.h"
+using AppController = follow_v3::UwbFollowRestV3;
+#elif BU04_APP_MODE == BU04_APP_MODE_FUSION_DEBUG
+#include "src/debug_report/FusionDebugReporter.h"
+using AppController = fusion_debug::FusionDebugReporter;
 #elif BU04_APP_MODE == BU04_APP_MODE_TEST_CHAIN
 #include "src/test_chain/Bu04TestChain.h"
 using AppController = test_chain::Bu04TestChain;
@@ -52,6 +61,14 @@ void setup() {
   Serial.print("App mode = ");
 #if BU04_APP_MODE == BU04_APP_MODE_FOLLOW
   Serial.println("FOLLOW");
+#elif BU04_APP_MODE == BU04_APP_MODE_FOLLOW_V2_1HZ
+  Serial.println("FOLLOW_V2_1HZ");
+#elif BU04_APP_MODE == BU04_APP_MODE_FOLLOW_V2_WINDOW
+  Serial.println("FOLLOW_V2_WINDOW");
+#elif BU04_APP_MODE == BU04_APP_MODE_FOLLOW_V3
+  Serial.println("FOLLOW_V3");
+#elif BU04_APP_MODE == BU04_APP_MODE_FUSION_DEBUG
+  Serial.println("FUSION_DEBUG");
 #elif BU04_APP_MODE == BU04_APP_MODE_TEST_CHAIN
   Serial.println("TEST_CHAIN");
 #else

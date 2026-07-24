@@ -15,10 +15,15 @@ constexpr uint16_t kRobotPort = 1448;
 #define BU04_TEST_CHAIN_MODE_PERIODIC_MOVE 0
 #define BU04_TEST_CHAIN_MODE_STRAIGHT_ONLY 1
 #define BU04_TEST_CHAIN_MODE_ROTATE_ONLY 2
+#define BU04_TEST_CHAIN_MODE_LEG_ONLY 3
 
 // Change this macro to pick one test path.
-// Current test focus: sample one BU04 frame every 5 seconds and use it only for angle test.
-#define BU04_TEST_CHAIN_MODE BU04_TEST_CHAIN_MODE_ROTATE_ONLY
+// Current test focus: only fetch leg data and print timing/result.
+#define BU04_TEST_CHAIN_MODE BU04_TEST_CHAIN_MODE_LEG_ONLY
+
+// Enable this empty macro to make test_chain only count BU04 receive frames once per second.
+// Comment it out to restore normal test-chain action execution.
+#define BU04_TEST_CHAIN_ENABLE_BU04_RX_RATE_LOG
 
 #define BU04_TEST_CHAIN_PERIODIC_SEND_MS 4000  // Periodic move-to dispatch interval, ms.
 #define BU04_TEST_CHAIN_PERIODIC_STEP_M 1.0f  // Fixed forward step for periodic move mode, m.
@@ -38,6 +43,8 @@ constexpr uint16_t kRobotPort = 1448;
 #define BU04_TEST_CHAIN_WIFI_RECONNECT_MS 15000  // WiFi reconnect interval, ms.
 #define BU04_TEST_CHAIN_REST_RETRY_MS 1200  // REST retry delay after failure, ms.
 #define BU04_TEST_CHAIN_STATUS_LOG_MS 5000  // Status log interval, ms.
+#define BU04_TEST_CHAIN_RX_RATE_LOG_MS 1000  // BU04 receive frame rate log interval, ms.
+#define BU04_TEST_CHAIN_LEG_FETCH_MS 3000  // Leg fetch interval when leg-only mode is enabled, ms.
 
 #define BU04_TEST_CHAIN_FRAME_IDLE_LOG_MS 3000  // Frame idle warning interval, ms.
 

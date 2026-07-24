@@ -152,6 +152,39 @@ bool SlamtecRestClient::startMoveTo(float x, float y, String& actionId) {
   return extractStringField(response, "action_id", actionId);
 }
 
+bool SlamtecRestClient::startFollowPathPoint(float x, float y, float yawRad, String& actionId) {
+  String body;
+  body.reserve(384);
+  body += "{\"action_name\":\"slamtec.agent.actions.FollowPathPointsAction\",";
+  body += "\"options\":{";
+  body += "\"path_points\":[{\"x\":";
+  body += String(x, 3);
+  body += ",\"y\":";
+  body += String(y, 3);
+  body += ",\"z\":0}],";
+  body += "\"move_options\":{\"mode\":0,\"flags\":[\"precise\",\"with_yaw\"]},";
+  body += "\"yaw\":";
+  body += String(yawRad, 6);
+  body += ",\"acceptable_precision\":";
+  body += String(BU04_FOLLOW_PATH_ACCEPTABLE_PRECISION_M, 3);
+  body += ",\"fail_retry_count\":";
+  body += String(BU04_FOLLOW_PATH_FAIL_RETRY_COUNT);
+  body += ",\"speed_ratio\":";
+  body += String(BU04_FOLLOW_PATH_SPEED_RATIO, 3);
+  body += "}}";
+
+  int httpCode = 0;
+  String response;
+  if (!requestJson("POST", baseUrl() + "/api/core/motion/v1/actions", body, httpCode, response)) {
+    return false;
+  }
+  if (httpCode < 200 || httpCode >= 300) {
+    return false;
+  }
+
+  return extractStringField(response, "action_id", actionId);
+}
+
 bool SlamtecRestClient::startRotateTo(float angleDeg, String& actionId) {
   String body;
   body.reserve(192);

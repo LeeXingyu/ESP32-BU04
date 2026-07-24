@@ -258,6 +258,7 @@ void UwbFollowRest::update(Bu04Uart& dataUart) {
       actionActive_ = false;
       currentActionId_ = "";
     }
+    clearQueue();
   }
 
   checkCurrentAction();
@@ -503,6 +504,12 @@ float UwbFollowRest::distanceM(const UwbFrame& frame) {
 
 void UwbFollowRest::processSample(const UwbFrame& frame) {
   const unsigned long now = millis();
+  const unsigned long prevMotionSampleMs = lastMotionSampleMs_;
+  if (prevMotionSampleMs != 0U && now - prevMotionSampleMs < BU04_FOLLOW_SAMPLE_INTERVAL_MS) {
+    return;
+  }
+  lastMotionSampleMs_ = now;
+
   const float inputX = BU04_FOLLOW_INVERT_X_AXIS ? -static_cast<float>(frame.xcm)
                                                  : static_cast<float>(frame.xcm);
   const float inputY = static_cast<float>(frame.ycm);
@@ -529,9 +536,7 @@ void UwbFollowRest::processSample(const UwbFrame& frame) {
   filteredYcm_ = rawY;
   hasFiltered_ = true;
   hasVelocity_ = false;
-  lastMotionSampleMs_ = now;
 #else
-  const unsigned long prevMotionSampleMs = lastMotionSampleMs_;
   pushMeanWindow(frame);
 
   UwbFrame averagedFrame;
@@ -603,11 +608,13 @@ void UwbFollowRest::processSample(const UwbFrame& frame) {
       rest_.cancelCurrentAction();
       actionActive_ = false;
       currentActionId_ = "";
+      clearQueue();
     }
     return;
   }
   safetyStopSinceMs_ = 0U;
   if (distM <= BU04_FOLLOW_TOO_CLOSE_DISTANCE_M) {
+    clearQueue();
     return;
   }
 
@@ -635,7 +642,7 @@ void UwbFollowRest::processSample(const UwbFrame& frame) {
   point.xcm = predictedXcm;
   point.ycm = predictedYcm;
   pushPoint(point);
-  lastMotionSampleMs_ = now;
+  // The sample tick is already stored above; only the derived target is queued here.
 }
 
 void UwbFollowRest::pushPoint(const FollowTarget& point) {
@@ -672,6 +679,12 @@ void UwbFollowRest::popQueue(uint8_t count) {
     queueHead_ = static_cast<uint8_t>((queueHead_ + 1U) % BU04_FOLLOW_QUEUE_SIZE);
     --queueCount_;
   }
+}
+
+void UwbFollowRest::clearQueue() {
+  queueHead_ = 0;
+  queueTail_ = 0;
+  queueCount_ = 0;
 }
 
 bool UwbFollowRest::dispatchLatestAngleIfNeeded() {
@@ -727,68 +740,27 @@ void UwbFollowRest::dispatchNextIfNeeded() {
   }
 
   if (actionActive_) {
-    if (millis() - lastDispatchMs_ < BU04_FOLLOW_LIVE_REPLAN_MIN_MS) {
-      return;
-    }
-    if (queueCount_ < BU04_FOLLOW_LIVE_REPLAN_MIN_POINTS) {
-      return;
-    }
-
-    const FollowTarget& latestRaw =
-        queueAt(static_cast<uint8_t>((queueTail_ + BU04_FOLLOW_QUEUE_SIZE - 1U) % BU04_FOLLOW_QUEUE_SIZE));
-    const MapPoint latest = tagToMap(latestRaw.xcm, latestRaw.ycm, lastPose_);
-    const float dx = latest.x - currentTarget_.x;
-    const float dy = latest.y - currentTarget_.y;
-    if (sqrtf(dx * dx + dy * dy) <= BU04_FOLLOW_REPLAN_TARGET_DELTA_M) {
-      return;
-    }
-
-    rest_.cancelCurrentAction();
-    actionActive_ = false;
-    currentActionId_ = "";
-  }
-
-  if (queueCount_ < BU04_FOLLOW_BOOTSTRAP_POINTS) {
     return;
   }
 
   const unsigned long now = millis();
-  const uint8_t dispatchIndex = static_cast<uint8_t>((queueCount_ > BU04_FOLLOW_LOOKAHEAD_POINTS)
-      ? BU04_FOLLOW_LOOKAHEAD_POINTS
-      : static_cast<uint8_t>(queueCount_ - 1U));
-
-  const FollowTarget& rawTarget = queueAt(static_cast<uint8_t>((queueHead_ + dispatchIndex) % BU04_FOLLOW_QUEUE_SIZE));
-  const MapPoint target = tagToMap(rawTarget.xcm, rawTarget.ycm, lastPose_);
-  const bool forceSend = (lastForcedDispatchMs_ == 0U) ||
-                         (now - lastForcedDispatchMs_ >= BU04_FOLLOW_FORCE_SEND_INTERVAL_MS);
-
-  if (hasCurrentTarget_) {
-    if (!forceSend && now - lastDispatchMs_ < BU04_FOLLOW_MIN_SEND_INTERVAL_MS) {
-      return;
-    }
-
-    const float dx = target.x - currentTarget_.x;
-    const float dy = target.y - currentTarget_.y;
-    if (!forceSend && sqrtf(dx * dx + dy * dy) < BU04_FOLLOW_MIN_SEND_DISTANCE_M) {
-      return;
-    }
+  if (now - lastRestAttemptMs_ < BU04_FOLLOW_REST_RETRY_MS) {
+    return;
   }
 
-  popQueue(static_cast<uint8_t>(dispatchIndex));
+  const FollowTarget& rawTarget = queueAt(queueHead_);
+  const MapPoint target = tagToMap(rawTarget.xcm, rawTarget.ycm, lastPose_);
+  const float yawRad = atan2f(target.y - lastPose_.y, target.x - lastPose_.x);
 
   String actionId;
-  if (forceSend) {
-    lastForcedDispatchMs_ = now;
-  }
-  if (rest_.startMoveTo(target.x, target.y, actionId)) {
+  if (rest_.startFollowPathPoint(target.x, target.y, yawRad, actionId)) {
+    popQueue(1);
     actionActive_ = true;
     currentActionId_ = actionId;
-    currentTarget_ = target;
-    hasCurrentTarget_ = true;
-    lastDispatchMs_ = millis();
+    lastDispatchMs_ = now;
     ++totalActions_;
   } else {
-    lastRestAttemptMs_ = millis();
+    lastRestAttemptMs_ = now;
   }
 }
 
@@ -810,7 +782,6 @@ void UwbFollowRest::checkCurrentAction() {
   }
 
   if (!running) {
-    popQueue(1);
     actionActive_ = false;
     currentActionId_ = "";
   }

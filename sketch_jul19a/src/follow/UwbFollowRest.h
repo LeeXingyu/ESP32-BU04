@@ -61,6 +61,7 @@ class UwbFollowRest {
   bool queueEmpty() const;
   const FollowTarget& queueAt(uint8_t index) const;
   void popQueue(uint8_t count);
+  void clearQueue();
   bool dispatchLatestAngleIfNeeded();
   void dispatchNextIfNeeded();
   void checkCurrentAction();

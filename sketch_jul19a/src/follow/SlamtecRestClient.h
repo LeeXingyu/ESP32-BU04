@@ -17,6 +17,7 @@ class SlamtecRestClient {
 
   bool getPose(RobotPose& pose);
   bool startMoveTo(float x, float y, String& actionId);
+  bool startFollowPathPoint(float x, float y, float yawRad, String& actionId);
   bool startRotateTo(float angleDeg, String& actionId);
   bool getActionRunning(const String& actionId, bool& running);
   bool cancelCurrentAction();

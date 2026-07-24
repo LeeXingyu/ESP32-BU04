@@ -174,7 +174,7 @@ The follow path uses `SlamtecRestClient` to talk to the robot.
 Responsibilities:
 
 - get pose
-- start move action
+- start `FollowPathPointsAction`
 - check action state
 - cancel current action
 
@@ -209,8 +209,8 @@ Suggested tuning order:
 1. adjust `BU04_FOLLOW_OUTLIER_DISTANCE_CM`
 2. adjust `BU04_FOLLOW_OUTLIER_ACCEPT_STRIKES`
 3. adjust `BU04_FOLLOW_EMA_ALPHA`
-4. adjust `BU04_FOLLOW_MIN_SEND_INTERVAL_MS`
-5. adjust `BU04_FOLLOW_MIN_SEND_DISTANCE_M`
+4. adjust `BU04_FOLLOW_PATH_SPEED_RATIO`
+5. adjust `BU04_FOLLOW_PATH_ACCEPTABLE_PRECISION_M`
 
 If the robot follows too lazily:
 
@@ -242,4 +242,3 @@ If you see:
 - [`src/follow/UwbFollowRest.cpp`](../src/follow/UwbFollowRest.cpp)
 - [`src/follow/SlamtecRestClient.h`](../src/follow/SlamtecRestClient.h)
 - [`src/follow/SlamtecRestClient.cpp`](../src/follow/SlamtecRestClient.cpp)
-

@@ -4,6 +4,7 @@
 #include <WiFi.h>
 
 #include "../bu04/Bu04Uart.h"
+#include "../leg/LegFollowDetector.h"
 #include "TestChainConfig.h"
 #include "TestMotionClient.h"
 
@@ -50,7 +51,9 @@ class Bu04TestChain {
   void handleStraightFrame(const UwbFrame& frame);
   void handleRotateFrame(const UwbFrame& frame);
   void logStatusIfDue();
+  void logRxRateIfDue();
   void checkCurrentAction();
+  void runLegOnlyTest();
 
   Stream& debug_;
   TestMotionClient motion_;
@@ -65,8 +68,10 @@ class Bu04TestChain {
   unsigned long lastRotateSendMs_;
   unsigned long lastActionCheckMs_;
   unsigned long lastStatusLogMs_;
+  unsigned long lastRxRateLogMs_;
   unsigned long lastFrameSeenMs_;
   unsigned long lastRestAttemptMs_;
+  unsigned long lastLegFetchMs_;
   bool wifiReady_;
   bool hasPose_;
   RobotPose lastPose_;
@@ -74,6 +79,7 @@ class Bu04TestChain {
   String currentActionId_;
   bool hasCurrentTarget_;
   uint32_t totalFrames_;
+  uint32_t rxFramesSinceLog_;
   uint32_t totalSends_;
   uint32_t parseFails_;
   uint32_t rejectedFrames_;

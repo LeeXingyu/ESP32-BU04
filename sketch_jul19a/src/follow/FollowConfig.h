@@ -13,22 +13,22 @@ inline IPAddress robotIp() {
 }
 constexpr uint16_t kRobotPort = 1448;
 
-#define BU04_FOLLOW_SAMPLE_INTERVAL_MS 0  // Reserved; current follow path processes every valid frame.
+#define BU04_FOLLOW_SAMPLE_INTERVAL_MS 1000  // Read and dispatch follow samples at 1 Hz.
 #define BU04_FOLLOW_ACTION_CHECK_MS 50  // Action status poll interval, ms.
 #define BU04_FOLLOW_WIFI_RECONNECT_MS 15000  // WiFi reconnect interval, ms.
 #define BU04_FOLLOW_REST_RETRY_MS 1200  // REST retry delay after failure, ms.
 #define BU04_FOLLOW_STATUS_LOG_MS 15000  // Status log interval, ms.
 
 #define BU04_FOLLOW_QUEUE_SIZE 10  // Target queue capacity.
-#define BU04_FOLLOW_BOOTSTRAP_POINTS 1  // Points required before first dispatch.
-#define BU04_FOLLOW_LOOKAHEAD_POINTS 1  // Lookahead points taken from queue.
-#define BU04_FOLLOW_LIVE_REPLAN_MIN_POINTS 1  // Min queued points before replanning.
-#define BU04_FOLLOW_LIVE_REPLAN_MIN_MS 60  // Min gap between replans, ms.
+#define BU04_FOLLOW_BOOTSTRAP_POINTS 1  // Reserved for future batching; current 1Hz path starts with a single point.
+#define BU04_FOLLOW_LOOKAHEAD_POINTS 1  // Reserved for future batching; single-point path currently dispatches the queue head.
+#define BU04_FOLLOW_LIVE_REPLAN_MIN_POINTS 1  // Legacy live-replan knob kept for compatibility.
+#define BU04_FOLLOW_LIVE_REPLAN_MIN_MS 60  // Legacy live-replan knob kept for compatibility.
 #define BU04_FOLLOW_ENABLE_POINT_SPACING_GUARD 1  // 1 = suppress points that are too close to the last queued point.
 #define BU04_FOLLOW_INVERT_X_AXIS 1  // 1 = invert BU04 X axis before filtering, 0 = keep original direction.
-#define BU04_FOLLOW_MIN_SEND_DISTANCE_M 0.05f  // Minimum distance between two dispatched targets, m.
-#define BU04_FOLLOW_MIN_SEND_INTERVAL_MS 40  // Minimum time between two dispatches, ms.
-#define BU04_FOLLOW_FORCE_SEND_INTERVAL_MS 2000  // Force one dispatch at least every N ms when data is available.
+#define BU04_FOLLOW_MIN_SEND_DISTANCE_M 0.05f  // Legacy dispatch guard kept for compatibility.
+#define BU04_FOLLOW_MIN_SEND_INTERVAL_MS 1000  // Legacy dispatch guard kept for compatibility.
+#define BU04_FOLLOW_FORCE_SEND_INTERVAL_MS 1000  // Legacy safety gate for fixed-rate follow dispatch.
 #define BU04_FOLLOW_LATEST_ANGLE_SEND_MS 5000  // Dispatch interval for the latest-angle motion mode, ms.
 #define BU04_FOLLOW_MEAN_WINDOW_SIZE 4  // Sliding sample window size for robust averaging.
 #define BU04_FOLLOW_MEAN_MIN_KEEP 2  // Minimum samples kept after outlier rejection.
@@ -48,6 +48,9 @@ constexpr uint16_t kRobotPort = 1448;
 #define BU04_FOLLOW_REPLAN_TARGET_DELTA_M 0.25f  // Target delta that triggers replan, m.
 #define BU04_FOLLOW_SLOWDOWN_DISTANCE_M 0.60f  // Start soft slowdown when distance is below this, m.
 #define BU04_FOLLOW_SAFETY_STOP_HOLD_MS 200  // Hold safety stop briefly before canceling action, ms.
+#define BU04_FOLLOW_PATH_SPEED_RATIO 0.35f  // Lower speed ratio to reduce braking jerk during follow-path dispatch.
+#define BU04_FOLLOW_PATH_ACCEPTABLE_PRECISION_M 0.18f  // Accept the point once the robot is within this distance, m.
+#define BU04_FOLLOW_PATH_FAIL_RETRY_COUNT 1  // Retry count for path-point follow action.
 
 #define BU04_FOLLOW_VALID_ANGLE_MIN_DEG -60.0f  // BU04 angle lower bound for valid tracking, deg.
 #define BU04_FOLLOW_VALID_ANGLE_MAX_DEG 60.0f  // BU04 angle upper bound for valid tracking, deg.
